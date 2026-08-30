@@ -293,11 +293,14 @@ export function SessionRow({
   session,
   subject,
   chapterTitle,
+  topicLabel,
   onDelete,
 }: {
   session: StudySession;
   subject: Subject | undefined;
   chapterTitle?: string;
+  /** Optional syllabus topic tag (e.g. "Current Electricity · Kirchhoff's laws"). */
+  topicLabel?: string;
   onDelete: () => void;
 }) {
   return (
@@ -305,7 +308,14 @@ export function SessionRow({
       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: subject?.color ?? "var(--faint)" }} aria-hidden="true" />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-ink truncate">{subject?.name ?? "Removed subject"}</p>
-        {chapterTitle && <p className="text-xs text-mute truncate">{chapterTitle}</p>}
+        {topicLabel ? (
+          <p className="text-xs font-medium text-pine truncate">
+            {topicLabel}
+            {chapterTitle ? ` · ${chapterTitle}` : ""}
+          </p>
+        ) : (
+          chapterTitle && <p className="text-xs text-mute truncate">{chapterTitle}</p>
+        )}
         {session.notes && <p className="text-xs text-faint italic truncate mt-0.5">“{session.notes}”</p>}
       </div>
       <span className="text-sm font-bold text-ink tnum">{fmtDuration(session.durationSec)}</span>

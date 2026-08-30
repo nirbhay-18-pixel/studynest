@@ -139,6 +139,7 @@ export function normalizeUserData(raw: unknown): UserData | null {
         id: s.id,
         subjectId: s.subjectId,
         chapterId: typeof s.chapterId === "string" ? s.chapterId : null,
+        topicRefId: typeof s.topicRefId === "string" ? s.topicRefId : null,
         startedAt: str(s.startedAt, new Date().toISOString()),
         durationSec: Math.round(dur),
         notes: str(s.notes, ""),
@@ -176,13 +177,40 @@ export function normalizeUserData(raw: unknown): UserData | null {
       accumulatedSec: Math.max(0, num(timer.accumulatedSec, 0)),
       subjectId: typeof timer.subjectId === "string" ? timer.subjectId : null,
       chapterId: typeof timer.chapterId === "string" ? timer.chapterId : null,
+      topicRefId: typeof timer.topicRefId === "string" ? timer.topicRefId : null,
     },
     aiConfig: {
       endpoint: str(ai.endpoint, ""),
       model: str(ai.model, ""),
       apiKey: str(ai.apiKey, ""),
     },
+    syllabus: normalizeSyllabus(raw.syllabus),
     sample: bool(raw.sample, false),
     createdAt: str(raw.createdAt, new Date().toISOString()),
   };
+}
+
+/** Validate the per-topic progress map; malformed entries are repaired, never trusted. */
+function normalizeSyllabus(raw: unknown): UserData["syllabus"] {
+  const out: UserData["syllabus"] = {};
+  if (!isObj(raw)) return out;
+  const STATUSES = ["not_started", "learning", "practicing", "revision", "completed"];
+  const PRIORITIES = ["low", "medium", "high"];
+  for (const [refId, v] of Object.entries(raw)) {
+    if (typeof refId !== "string" || !isObj(v)) continue;
+    out[refId] = {
+      status: STATUSES.includes(v.status as string) ? (v.status as UserData["syllabus"][string]["status"]) : "not_started",
+      notes: str(v.notes, ""),
+      targetDate: typeof v.targetDate === "string" ? v.targetDate : null,
+      personalPriority: PRIORITIES.includes(v.personalPriority as string)
+        ? (v.personalPriority as "low" | "medium" | "high")
+        : null,
+      pyqAttempted: Math.max(0, Math.round(num(v.pyqAttempted, 0))),
+      pyqCorrect: Math.max(0, Math.round(num(v.pyqCorrect, 0))),
+      lastPyqDate: typeof v.lastPyqDate === "string" ? v.lastPyqDate : null,
+      lastReviewed: typeof v.lastReviewed === "string" ? v.lastReviewed : null,
+      updatedAt: str(v.updatedAt, new Date().toISOString()),
+    };
+  }
+  return out;
 }

@@ -15,6 +15,8 @@ import type {
   Task,
   Theme,
   TimerState,
+  TopicProgress,
+  TopicStatus,
   UserData,
 } from "../types";
 import { keys, loadJSON, normalizeAccounts, normalizeUserData, removeKey, saveJSON } from "../lib/storage";
@@ -79,6 +81,7 @@ const defaultTimer = (): TimerState => ({
   accumulatedSec: 0,
   subjectId: null,
   chapterId: null,
+  topicRefId: null,
 });
 
 const defaultData = (name: string): UserData => ({
@@ -91,6 +94,7 @@ const defaultData = (name: string): UserData => ({
   chat: [],
   timer: defaultTimer(),
   aiConfig: { endpoint: "", model: "", apiKey: "" },
+  syllabus: {},
   sample: false,
   createdAt: nowISO(),
 });
@@ -339,6 +343,7 @@ export function deleteTask(id: string): void {
 export function logSession(input: {
   subjectId: string;
   chapterId: string | null;
+  topicRefId?: string | null;
   dateKeyStr: string;
   minutes: number;
   notes: string;
@@ -356,6 +361,7 @@ export function logSession(input: {
     id: uid(),
     subjectId: input.subjectId,
     chapterId: input.chapterId,
+    topicRefId: input.topicRefId ?? null,
     startedAt,
     durationSec: minutes * 60,
     notes: input.notes.trim(),
@@ -375,10 +381,10 @@ export function timerElapsed(t: TimerState, nowMs: number = Date.now()): number 
   return t.accumulatedSec + live;
 }
 
-export function startTimer(subjectId: string, chapterId: string | null): void {
+export function startTimer(subjectId: string, chapterId: string | null, topicRefId: string | null = null): void {
   commit((d) => ({
     ...d,
-    timer: { active: true, paused: false, startedAt: Date.now(), accumulatedSec: 0, subjectId, chapterId },
+    timer: { active: true, paused: false, startedAt: Date.now(), accumulatedSec: 0, subjectId, chapterId, topicRefId },
   }));
 }
 
@@ -416,6 +422,7 @@ export function stopTimer(note: string): StopResult {
     id: uid(),
     subjectId: t.subjectId,
     chapterId: t.chapterId,
+    topicRefId: t.topicRefId,
     startedAt: new Date(Date.now() - sec * 1000).toISOString(),
     durationSec: sec,
     notes: note.trim(),
@@ -424,7 +431,7 @@ export function stopTimer(note: string): StopResult {
   commit((d) => ({
     ...d,
     sessions: [...d.sessions, session],
-    timer: { ...defaultTimer(), subjectId: d.timer.subjectId, chapterId: d.timer.chapterId },
+    timer: { ...defaultTimer(), subjectId: d.timer.subjectId, chapterId: d.timer.chapterId, topicRefId: d.timer.topicRefId },
   }));
   return { ok: true, session };
 }
@@ -498,6 +505,64 @@ export function clearChat(): void {
   commit((d) => ({ ...d, chat: [] }));
 }
 
+/* ================= syllabus topic progress =================
+ * Progress is stored keyed by the stable syllabus topic id and kept strictly
+ * separate from the immutable syllabus reference data. Study time per topic is
+ * never stored — it is derived from sessions tagged with the topic id. */
+
+const defaultTopicProgress = (): TopicProgress => ({
+  status: "not_started",
+  notes: "",
+  targetDate: null,
+  personalPriority: null,
+  pyqAttempted: 0,
+  pyqCorrect: 0,
+  lastPyqDate: null,
+  lastReviewed: null,
+  updatedAt: nowISO(),
+});
+
+function touchTopic(d: UserData, refId: string, patch: Partial<TopicProgress>): UserData {
+  const base = d.syllabus[refId] ?? defaultTopicProgress();
+  return { ...d, syllabus: { ...d.syllabus, [refId]: { ...base, ...patch, updatedAt: nowISO() } } };
+}
+
+export function setTopicStatus(refId: string, status: TopicStatus): void {
+  commit((d) => {
+    const reviewed =
+      status === "revision" || status === "completed" ? todayKey() : (d.syllabus[refId]?.lastReviewed ?? null);
+    return touchTopic(d, refId, { status, lastReviewed: reviewed });
+  });
+}
+
+export function updateTopicFields(
+  refId: string,
+  patch: { notes?: string; targetDate?: string | null; personalPriority?: Priority | null }
+): void {
+  commit((d) => touchTopic(d, refId, patch));
+}
+
+export function savePyq(refId: string, attempted: number, correct: number): Result {
+  const a = Math.max(0, Math.round(attempted));
+  const c = Math.max(0, Math.round(correct));
+  if (!Number.isFinite(attempted) || !Number.isFinite(correct)) return { ok: false, error: "Enter whole numbers." };
+  if (c > a) return { ok: false, error: "Correct answers can't exceed attempted." };
+  if (a > 100000) return { ok: false, error: "That attempt count looks unrealistic." };
+  commit((d) =>
+    touchTopic(d, refId, {
+      pyqAttempted: a,
+      pyqCorrect: c,
+      lastPyqDate: a > 0 ? todayKey() : (d.syllabus[refId]?.lastPyqDate ?? null),
+    })
+  );
+  return { ok: true, value: undefined };
+}
+
+/** Derived study time for one syllabus topic, from tagged sessions. */
+export function topicStudySec(sessions: StudySession[], refId: string): number {
+  return sessions.reduce((acc, s) => (s.topicRefId === refId ? acc + s.durationSec : acc), 0);
+}
+
 /* ================= data management ================= */
 
 export function loadSampleData(): void {
@@ -515,6 +580,7 @@ export function clearAllData(): void {
     goals: [],
     chat: [],
     timer: defaultTimer(),
+    syllabus: {},
     sample: false,
   }));
 }

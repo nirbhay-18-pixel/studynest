@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { CalendarPlus, ChevronDown, History, Pause, Play, Square, Timer, Trash2 } from "lucide-react";
 import {
@@ -13,6 +13,8 @@ import {
   useNow,
 } from "../store/store";
 import { secondsOnDay, subjectOf, weekToDateSec, totalSec } from "../lib/stats";
+import { getTopic, SUBJECT_META, SYLLABUS } from "../data/syllabus";
+import { takePendingTopic } from "../lib/syllabusStats";
 import { Button, Field, Input, Select, Textarea } from "../components/ui";
 import { useToast } from "../components/overlays";
 import { cx, dateKey, fmtClock, fmtDay, fmtDuration, isValidKey, notFutureKey, todayKey } from "../lib/utils";
@@ -27,7 +29,14 @@ export default function StudyPage() {
 
   const [subjectId, setSubjectId] = useState("");
   const [chapterId, setChapterId] = useState("");
+  const [topicRefId, setTopicRefId] = useState("");
   const [note, setNote] = useState("");
+
+  // Consume a one-shot "Study this topic" handoff from the Syllabus page.
+  useEffect(() => {
+    const pending = takePendingTopic();
+    if (pending && getTopic(pending)) setTopicRefId(pending);
+  }, []);
 
   const activeSubjects = useMemo(() => (data?.subjects ?? []).filter((s) => !s.archived), [data]);
   const effSubjectId = active && timer?.subjectId ? timer.subjectId : subjectId || activeSubjects[0]?.id || "";
@@ -36,6 +45,13 @@ export default function StudyPage() {
     [data, effSubjectId]
   );
   const effChapterId = active && timer ? (timer.chapterId ?? "") : chapterId;
+  const effTopicRefId = active && timer ? (timer.topicRefId ?? "") : topicRefId;
+  const syllabusGroups = useMemo(() => {
+    return SYLLABUS.subjects.map((sub) => ({
+      code: sub.code,
+      units: sub.units.map((u) => ({ n: u.n, name: u.name, topics: u.topics })),
+    }));
+  }, []);
 
   const history = useMemo(
     () => [...(data?.sessions ?? [])].sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
@@ -59,7 +75,7 @@ export default function StudyPage() {
       toast({ title: "Pick a subject first", desc: "Create one under Subjects if the list is empty.", tone: "error" });
       return;
     }
-    startTimer(effSubjectId, effChapterId || null);
+    startTimer(effSubjectId, effChapterId || null, effTopicRefId || null);
     toast({ title: "Timer running", desc: `Deep work on ${subject?.name ?? "your subject"} — you've got this.` });
   };
 
@@ -110,6 +126,22 @@ export default function StudyPage() {
                     <option value="">Just the subject</option>
                     {chapterOptions.map((c) => (
                       <option key={c.id} value={c.id}>{c.title}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label={`Syllabus topic (optional · ${SYLLABUS.version})`} hint="Tags the session so study time accrues to the official topic.">
+                  <Select value={effTopicRefId} onChange={(e) => setTopicRefId(e.target.value)}>
+                    <option value="">No syllabus tag</option>
+                    {syllabusGroups.map((sub) => (
+                      <optgroup key={sub.code} label={`${SUBJECT_META[sub.code].name}`}>
+                        {sub.units.map((u) =>
+                          u.topics.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              U{u.n} · {t.name}
+                            </option>
+                          ))
+                        )}
+                      </optgroup>
                     ))}
                   </Select>
                 </Field>
@@ -200,18 +232,22 @@ export default function StudyPage() {
                     <span className="text-[12px] font-bold text-mute tnum">{fmtDuration(sessions.reduce((a, s) => a + s.durationSec, 0))}</span>
                   </div>
                   <ul className="divide-y divide-line/60">
-                    {sessions.map((s) => (
-                      <SessionRow
-                        key={s.id}
-                        session={s}
-                        subject={subjectOf(data.subjects, s.subjectId)}
-                        chapterTitle={data.chapters.find((c) => c.id === s.chapterId)?.title}
-                        onDelete={() => {
-                          deleteSessionSafe(s.id);
-                          toast({ title: "Session deleted", tone: "info" });
-                        }}
-                      />
-                    ))}
+                    {sessions.map((s) => {
+                      const ref = s.topicRefId ? getTopic(s.topicRefId) : undefined;
+                      return (
+                        <SessionRow
+                          key={s.id}
+                          session={s}
+                          subject={subjectOf(data.subjects, s.subjectId)}
+                          chapterTitle={data.chapters.find((c) => c.id === s.chapterId)?.title}
+                          topicLabel={ref ? `${SUBJECT_META[ref.subject].short} U${ref.unitN} · ${ref.name}` : undefined}
+                          onDelete={() => {
+                            deleteSessionSafe(s.id);
+                            toast({ title: "Session deleted", tone: "info" });
+                          }}
+                        />
+                      );
+                    })}
                   </ul>
                 </div>
               ))}

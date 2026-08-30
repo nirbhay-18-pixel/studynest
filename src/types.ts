@@ -56,10 +56,33 @@ export interface StudySession {
   id: string;
   subjectId: string;
   chapterId: string | null;
+  /** Optional immutable syllabus topic id (e.g. JEE26-P-U12-T21) — study time per syllabus topic is derived from this. */
+  topicRefId: string | null;
   startedAt: string; // ISO
   durationSec: number;
   notes: string;
   createdAt: string;
+}
+
+/** Progress state of a single official syllabus topic. */
+export type TopicStatus = "not_started" | "learning" | "practicing" | "revision" | "completed";
+
+/**
+ * User progress for one syllabus topic, keyed by the stable topic id.
+ * Stored separately from the immutable syllabus reference data so syllabus
+ * versions can change without touching progress. Study time is NOT stored
+ * here — it is derived from tagged study sessions (single source of truth).
+ */
+export interface TopicProgress {
+  status: TopicStatus;
+  notes: string;
+  targetDate: string | null; // yyyy-mm-dd
+  personalPriority: Priority | null; // student's own override, if set
+  pyqAttempted: number;
+  pyqCorrect: number;
+  lastPyqDate: string | null; // yyyy-mm-dd of most recent PYQ logging
+  lastReviewed: string | null; // set when marked revision/completed
+  updatedAt: string;
 }
 
 export interface Goal {
@@ -86,6 +109,7 @@ export interface TimerState {
   accumulatedSec: number; // banked seconds from previous segments
   subjectId: string | null;
   chapterId: string | null;
+  topicRefId: string | null; // optional syllabus topic tag
 }
 
 export interface AIConfig {
@@ -104,6 +128,8 @@ export interface UserData {
   chat: ChatMessage[];
   timer: TimerState;
   aiConfig: AIConfig;
+  /** Syllabus topic progress keyed by stable topic id (e.g. JEE26-P-U12-T21). */
+  syllabus: Record<string, TopicProgress>;
   sample: boolean;
   createdAt: string;
 }

@@ -15,12 +15,23 @@ import {
 } from "../lib/stats";
 import { fmtDayLong, fmtDuration, fmtHours, timeGreeting, todayKey } from "../lib/utils";
 import { secondsOnDay } from "../lib/stats";
-import { Button, PriorityBadge, ProgressBar, Ring, SubjectGlyph } from "../components/ui";
+import { Badge, Button, PriorityBadge, ProgressBar, Ring, SubjectGlyph } from "../components/ui";
 import { BarChart } from "../components/charts";
 import { EmptyState, PageHeader, SessionRow, StatCard, SubjectChip } from "../components/widgets";
 import { PREP_TERMS } from "../data/presets";
 import { useToast, Confirm } from "../components/overlays";
 import { useState } from "react";
+import { SYLLABUS } from "../data/syllabus";
+import {
+  overallAgg,
+  pyqAgg,
+  recommendedNext,
+  setPendingTopic,
+  subjectAgg,
+  subjectColors,
+} from "../lib/syllabusStats";
+import { Badge, ProgressBar, Ring } from "../components/ui";
+import { GraduationCap } from "lucide-react";
 
 export default function Dashboard() {
   const { data } = useApp();
@@ -71,6 +82,11 @@ export default function Dashboard() {
   }
   const overdue = data.chapters.filter((c) => !c.completed && c.targetDate && c.targetDate < todayKey());
   if (overdue.length > 0) insights.push(`${overdue.length} ${terms.unit}${overdue.length > 1 ? "s" : ""} passed ${overdue.length > 1 ? "their" : "its"} target date. Re-target or tackle first today.`);
+  if (profile.prepType === "jee") {
+    const jAgg = overallAgg(data.syllabus);
+    if (jAgg.highRemaining > 0)
+      insights.push(`${jAgg.highRemaining} high-priority JEE topics are still open — the Syllabus page ranks what to hit next by recent-paper trend.`);
+  }
   if (insights.length === 0 && stats.syl.total > 0) insights.push(`Steady beats heroic: aim for ${fmtDuration(dayGoalSec)} today and the syllabus takes care of itself.`);
   if (insights.length === 0) insights.push("Tip: add your subjects and chapters first — everything in StudyNest gets smarter with a structured syllabus.");
 

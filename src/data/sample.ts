@@ -81,10 +81,19 @@ export function generateSample(): {
     [0, 8, 30, 0, 55],
   ];
 
+  // Tag sample sessions with real JEE Main 2026 syllabus topics so syllabus
+  // study-time views have honest, consistent demo data.
+  const topicTags: string[][] = [
+    ["JEE26-P-U12-T21", "JEE26-P-U11-T14", "JEE26-P-U17-T05"],
+    ["JEE26-C-U07-T23", "JEE26-C-U08-T15"],
+    ["JEE26-M-U11-T09", "JEE26-M-U08-T12", "JEE26-M-U03-T09"],
+  ];
+
   const sessions: StudySession[] = plan.map(([d, h, m, si, dur], i) => ({
     id: uid(),
     subjectId: subjects[si].id,
     chapterId: null,
+    topicRefId: topicTags[si % 3][i % topicTags[si % 3].length],
     startedAt: iso(ago(d, h, m)),
     durationSec: dur * 60,
     notes: i % 5 === 0 ? "Focused block, phone away." : "",
