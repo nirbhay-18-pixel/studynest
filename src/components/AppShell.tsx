@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 import { setTheme, signOut, timerElapsed, useApp, useNow } from "../store/store";
 import { calcStreaks } from "../lib/stats";
 import { cx, fmtClock, initials } from "../lib/utils";
@@ -26,6 +27,7 @@ import { useToast } from "./overlays";
 const NAV: Array<{ to: string; label: string; icon: LucideIcon }> = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/subjects", label: "Subjects", icon: BookOpen },
+  { to: "/syllabus", label: "JEE Syllabus", icon: GraduationCap },
   { to: "/tasks", label: "Tasks", icon: ListTodo },
   { to: "/study", label: "Study", icon: Timer },
   { to: "/goals", label: "Goals", icon: Target },

@@ -21,7 +21,7 @@ import { EmptyState, PageHeader, SessionRow, StatCard, SubjectChip } from "../co
 import { PREP_TERMS } from "../data/presets";
 import { useToast, Confirm } from "../components/overlays";
 import { useState } from "react";
-import { SYLLABUS } from "../data/syllabus";
+import { SUBJECT_META, SYLLABUS } from "../data/syllabus";
 import {
   overallAgg,
   pyqAgg,
@@ -30,7 +30,6 @@ import {
   subjectAgg,
   subjectColors,
 } from "../lib/syllabusStats";
-import { Badge, ProgressBar, Ring } from "../components/ui";
 import { GraduationCap } from "lucide-react";
 
 export default function Dashboard() {
@@ -66,6 +65,21 @@ export default function Dashboard() {
   const dayGoalSec = profile.dailyGoalMin * 60;
   const isEmpty = data.subjects.length === 0 && data.sessions.length === 0 && data.tasks.length === 0;
 
+  // JEE Main 2026 official syllabus rollup (only for the JEE track).
+  const jee =
+    profile.prepType === "jee"
+      ? {
+          overall: overallAgg(data.syllabus),
+          subjects: (["physics", "chemistry", "mathematics"] as const).map((code) => ({
+            code,
+            name: SUBJECT_META[code].name,
+            ...subjectAgg(code, data.syllabus),
+          })),
+          pyq: pyqAgg(data.syllabus),
+          rec: recommendedNext(data.syllabus)[0] ?? null,
+        }
+      : null;
+
   const insights: string[] = [];
   if (stats.week > stats.weekAgoDays && stats.weekAgoDays > 0) {
     insights.push(`You're up ${Math.round(((stats.week - stats.weekAgoDays) / stats.weekAgoDays) * 100)}% vs the previous 6 days. Momentum is real — protect it.`);
@@ -82,10 +96,8 @@ export default function Dashboard() {
   }
   const overdue = data.chapters.filter((c) => !c.completed && c.targetDate && c.targetDate < todayKey());
   if (overdue.length > 0) insights.push(`${overdue.length} ${terms.unit}${overdue.length > 1 ? "s" : ""} passed ${overdue.length > 1 ? "their" : "its"} target date. Re-target or tackle first today.`);
-  if (profile.prepType === "jee") {
-    const jAgg = overallAgg(data.syllabus);
-    if (jAgg.highRemaining > 0)
-      insights.push(`${jAgg.highRemaining} high-priority JEE topics are still open — the Syllabus page ranks what to hit next by recent-paper trend.`);
+  if (jee && jee.overall.highRemaining > 0) {
+    insights.push(`${jee.overall.highRemaining} high-priority JEE topics are still open — the Syllabus page ranks what to hit next by recent-paper trend.`);
   }
   if (insights.length === 0 && stats.syl.total > 0) insights.push(`Steady beats heroic: aim for ${fmtDuration(dayGoalSec)} today and the syllabus takes care of itself.`);
   if (insights.length === 0) insights.push("Tip: add your subjects and chapters first — everything in StudyNest gets smarter with a structured syllabus.");
@@ -249,6 +261,90 @@ export default function Dashboard() {
               ))}
             </div>
           </section>
+
+          {jee && (
+            <section className="card p-5 anim-in">
+              <div className="flex items-center justify-between gap-2 mb-3.5">
+                <div className="min-w-0">
+                  <h2 className="font-display font-bold text-[16px] text-ink flex items-center gap-2">
+                    <GraduationCap className="w-4.5 h-4.5 text-pine" aria-hidden="true" /> JEE Main 2026
+                  </h2>
+                  <p className="text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-faint mt-0.5">Official NTA baseline</p>
+                </div>
+                <Link to="/syllabus" className="text-[12.5px] font-bold text-pine hover:underline inline-flex items-center gap-1 shrink-0">
+                  Syllabus <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+                </Link>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <Ring pct={jee.overall.pct} size={56} stroke={6}>
+                  <span className="font-display font-extrabold text-[13px] text-ink tnum">{jee.overall.pct}%</span>
+                </Ring>
+                <div className="min-w-0">
+                  <p className="font-display font-bold text-[15px] text-ink tnum leading-tight">
+                    {jee.overall.completed}/{jee.overall.total} topics
+                  </p>
+                  <p className="text-[12px] text-mute mt-0.5 tnum">
+                    {jee.overall.highRemaining > 0
+                      ? `${jee.overall.highRemaining} high-priority open`
+                      : "All high-priority topics covered"}
+                  </p>
+                  {jee.pyq.attempted > 0 && (
+                    <p className="text-[12px] text-mute tnum">
+                      PYQ accuracy {jee.pyq.accuracy}% <span className="text-faint">({jee.pyq.correct}/{jee.pyq.attempted})</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <ul className="space-y-3 mt-4">
+                {jee.subjects.map((s) => (
+                  <li key={s.code}>
+                    <div className="flex items-center justify-between text-[12.5px] mb-1">
+                      <span className="font-bold text-ink flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full" style={{ background: subjectColors[s.code] }} aria-hidden="true" />
+                        {s.name}
+                      </span>
+                      <span className="font-bold text-mute tnum">
+                        {s.pct}%
+                        {s.highRemaining > 0 && <span className="text-ember"> · {s.highRemaining} high</span>}
+                      </span>
+                    </div>
+                    <ProgressBar pct={s.pct} color={subjectColors[s.code]} thin />
+                  </li>
+                ))}
+              </ul>
+
+              {jee.rec && (
+                <div className="mt-4 pt-3.5 border-t border-line">
+                  <p className="text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-faint">Recommended next</p>
+                  <div className="flex items-center gap-2.5 mt-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13.5px] font-bold text-ink truncate">{jee.rec.topic.name}</p>
+                      <p className="text-[11.5px] text-mute truncate">
+                        {jee.rec.topic.subjectName} · U{jee.rec.topic.unitN} {jee.rec.topic.unitName}
+                      </p>
+                    </div>
+                    <Button
+                      size="xs"
+                      icon={Play}
+                      onClick={() => {
+                        setPendingTopic(jee.rec!.topic.id);
+                        nav("/study");
+                      }}
+                    >
+                      Study
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-faint mt-1.5 leading-snug">{jee.rec.reason}</p>
+                </div>
+              )}
+
+              <p className="text-[10.5px] text-faint mt-3.5 leading-snug">
+                {SYLLABUS.version} · importance = PYQ-trend priority, not a guarantee.
+              </p>
+            </section>
+          )}
 
           <section className="card p-5 anim-in">
             <div className="flex items-center justify-between mb-3.5">
