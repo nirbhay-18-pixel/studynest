@@ -1,5 +1,28 @@
+# dependencies
+node_modules
+
+# env — never commit secrets
+.env
+.env.*
+!.env.example
+
+# builds
+dist
+.next
+out
+
+# logs & caches
+*.log
+npm-debug.log*
+.vite
+.cache
+
+# editor / OS
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
 node_modules/
 .next/
 dist/
 build/
-*.log

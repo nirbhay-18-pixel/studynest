@@ -1,1 +1,295 @@
 @import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---- Design tokens (runtime-switchable) ---- */
+:root {
+  --paper: #f1f2ec;
+  --surface: #fbfbf7;
+  --raise: #f4f5ee;
+  --ink: #1b211d;
+  --mute: #61705f;
+  --faint: #8b978a;
+  --line: #e0e3d6;
+  --linex: #ccd1c0;
+  --pine: #1f5b46;
+  --pinedeep: #143d2f;
+  --pinewash: #e2ede4;
+  --ember: #c07a26;
+  --emberwash: #f6ead4;
+  --rust: #b23c31;
+  --rustwash: #f5e2de;
+  --moss: #5f7d3c;
+  --mossash: #e9efdc;
+  --sidebar: #14231c;
+  --sidebar-ink: #c9d6ca;
+  --shadow-card: 0 1px 2px rgb(27 33 29 / 0.05), 0 4px 16px -8px rgb(27 33 29 / 0.1);
+  --shadow-pop: 0 2px 6px rgb(20 30 24 / 0.08), 0 16px 40px -12px rgb(20 30 24 / 0.28);
+}
+
+.dark {
+  --paper: #0f1310;
+  --surface: #171c18;
+  --raise: #1d241f;
+  --ink: #e5ebe4;
+  --mute: #96a496;
+  --faint: #6e7d70;
+  --line: #262e27;
+  --linex: #354037;
+  --pine: #58b78e;
+  --pinedeep: #7acaa8;
+  --pinewash: #1b2b23;
+  --ember: #d99a4e;
+  --emberwash: #2d2517;
+  --rust: #d96f63;
+  --rustwash: #33201d;
+  --moss: #93b35e;
+  --mossash: #232a1a;
+  --sidebar: #101812;
+  --sidebar-ink: #aebcb0;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 20px -10px rgb(0 0 0 / 0.5);
+  --shadow-pop: 0 2px 8px rgb(0 0 0 / 0.4), 0 20px 50px -12px rgb(0 0 0 / 0.6);
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-raise: var(--raise);
+  --color-ink: var(--ink);
+  --color-mute: var(--mute);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-linex: var(--linex);
+  --color-pine: var(--pine);
+  --color-pinedeep: var(--pinedeep);
+  --color-pinewash: var(--pinewash);
+  --color-ember: var(--ember);
+  --color-emberwash: var(--emberwash);
+  --color-rust: var(--rust);
+  --color-rustwash: var(--rustwash);
+  --color-moss: var(--moss);
+  --color-mossash: var(--mossash);
+  --color-sidebar: var(--sidebar);
+  --color-sidebarink: var(--sidebar-ink);
+  --font-display: "Bricolage Grotesque", "IBM Plex Sans", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Layered ambient background: faint grid + top wash */
+.app-bg {
+  background-image:
+    radial-gradient(1100px 420px at 85% -140px, color-mix(in srgb, var(--pine) 7%, transparent), transparent 70%),
+    linear-gradient(to right, color-mix(in srgb, var(--ink) 3.2%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--ink) 3.2%, transparent) 1px, transparent 1px);
+  background-size: auto, 34px 34px, 34px 34px;
+  background-attachment: fixed;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--pine) 24%, transparent);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--pine);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--linex) transparent;
+}
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--linex);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* ---- Reusable surfaces ---- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Motion ---- */
+@keyframes sn-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes sn-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes sn-toast {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes sn-shimmer {
+  from {
+    background-position: -400px 0;
+  }
+  to {
+    background-position: 400px 0;
+  }
+}
+@keyframes sn-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.82);
+  }
+}
+@keyframes sn-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes sn-bounce-dot {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+.anim-in {
+  animation: sn-fade-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.anim-pop {
+  animation: sn-pop 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.anim-toast {
+  animation: sn-toast 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--raise) 25%,
+    color-mix(in srgb, var(--linex) 45%, var(--raise)) 50%,
+    var(--raise) 75%
+  );
+  background-size: 800px 100%;
+  animation: sn-shimmer 1.4s linear infinite;
+  border-radius: 8px;
+}
+.bar-grow {
+  transform-origin: left;
+  animation: sn-draw 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.pulse-dot {
+  animation: sn-pulse 1.6s ease-in-out infinite;
+}
+.typing-dot {
+  animation: sn-bounce-dot 1.2s ease-in-out infinite;
+}
+
+/* Range slider */
+input[type="range"] {
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--pine) 0%,
+    var(--pine) var(--fill, 50%),
+    var(--line) var(--fill, 50%),
+    var(--line) 100%
+  );
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 3px solid var(--pine);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.18);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 3px solid var(--pine);
+  cursor: pointer;
+}
+
+/* Checkbox tick */
+@keyframes sn-tick {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.tick-anim {
+  animation: sn-tick 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
